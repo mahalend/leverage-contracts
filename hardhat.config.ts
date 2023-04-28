@@ -7,24 +7,23 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `${process.env.ARBITRUM_RPC}`,
+        url: process.env.ARBITRUM_RPC || "",
       },
-      accounts: [
-        {
-          balance: "100000000000000000000",
-          privateKey: process.env.PRIVATE_KEY || "",
-        },
-      ],
-    },
-    goerli: {
-      url: process.env.GOERLI_INFURA_RPC,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: {
+        mnemonic: process.env.MNEMONIC || "",
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+      },
     },
     arbitrumOne: {
       url: process.env.ARBITRUM_RPC,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: {
+        mnemonic: process.env.MNEMONIC || "",
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+      },
     },
   },
   etherscan: {
