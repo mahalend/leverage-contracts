@@ -1,5 +1,6 @@
-import { ethers, JsonRpcProvider } from "ethers";
+import { ethers } from "ethers";
 import abi from "./abi/mahalendDebt.json";
+import { JsonRpcProvider } from "@ethersproject/providers";
 
 const provider = new JsonRpcProvider(
   "https://arb-mainnet.g.alchemy.com/v2/TXo4-GDMK8_CR2xT6oHr83OhY3O2SuSw"
