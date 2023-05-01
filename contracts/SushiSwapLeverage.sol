@@ -9,8 +9,7 @@ contract SushiSwapLeverage is ILeverageHelper {
         address assetToLeverage,
         address assetToBorrow,
         uint256 principalAmount,
-        uint256 minLeverageAssetExposure,
-        uint16 leverageFactor // 100 -> 1x leverage
+        uint256 minLeverageAssetExposure
     ) external override {
         // todo
         // take the asset from the user;
@@ -28,8 +27,7 @@ contract SushiSwapLeverage is ILeverageHelper {
         address assetToLeverage,
         address assetToRepay,
         uint256 leverageAssetExposure,
-        uint256 minPrincipalAmount,
-        uint16 leverageFactor // 100 -> 1x leverage
+        uint256 minPrincipalAmount
     ) external override {
         // todo
         // flashloan the principal asset from mahalend or from aave

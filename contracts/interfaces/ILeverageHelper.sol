@@ -8,14 +8,12 @@ interface ILeverageHelper {
     /// @param assetToBorrow The asset to borrow from MahaLend and sell to get exposure to more of the leveraged asset
     /// @param principalAmount How much `assetToSupply` is being provided
     /// @param minLeverageAssetExposure How much minimum `assetToLeverage` the user should be exposed to
-    /// @param leverageFactor How much leverage should the user take
     function openPosition(
         address assetToSupply,
         address assetToLeverage,
         address assetToBorrow,
         uint256 principalAmount,
-        uint256 minLeverageAssetExposure,
-        uint16 leverageFactor // 100 -> 1x leverage
+        uint256 minLeverageAssetExposure
     ) external;
 
     function closePosition(
@@ -23,8 +21,7 @@ interface ILeverageHelper {
         address assetToLeverage,
         address assetToRepay,
         uint256 leverageAssetExposure,
-        uint256 minPrincipalAmount,
-        uint16 leverageFactor // 100 -> 1x leverage
+        uint256 minPrincipalAmount
     ) external;
 
     /// @notice get the leverage position of a given user
