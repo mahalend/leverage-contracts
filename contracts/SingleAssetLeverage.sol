@@ -107,7 +107,7 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
     }
 
     function executeOperation(
-        address asset,
+        address flashloanedAsset,
         uint256 amount,
         uint256 premium,
         address,
@@ -117,17 +117,26 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
             uint8 action,
             address who,
             address assetToLeverage,
-            address assetToBorrow
-        ) = abi.decode(params, (uint8, address, address, address));
+            uint256 amountToBorrowOrRepay
+        ) = abi.decode(params, (uint8, address, address, uint256));
 
         if (action == 0)
             _openPositionInFlashloan(
-                asset,
+                assetToLeverage,
+                flashloanedAsset,
+                amount,
+                amountToBorrowOrRepay,
+                premium,
+                who
+            );
+        else if (action == 1)
+            _closePositionInFlashloan(
+                assetToLeverage,
+                flashloanedAsset,
+                amountToBorrowOrRepay,
                 amount,
                 premium,
-                who,
-                assetToLeverage,
-                assetToBorrow
+                who
             );
 
         return true;
@@ -153,28 +162,49 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
     }
 
     function _openPositionInFlashloan(
-        address asset,
-        uint256 amount,
+        address assetToSupply,
+        address assetToBorrow,
+        uint256 amountToSupply,
+        uint256 amountToBorrow,
         uint256 premium,
-        address who,
-        address assetToLeverage,
-        address assetToBorrow
+        address who
     ) internal {
-        // todo
         // we have the borrowed funds
         // approve pool
-        IERC20(assetToLeverage).approve(address(mahalend), amount);
+        IERC20(assetToSupply).approve(address(mahalend), amountToSupply);
 
         // supply the asset to mahalend
-        mahalend.supply(assetToLeverage, amount, who, 0);
-
-        // calculate how much to borrow of that same asset
-        uint256 borrowAmount = (amount * ltv) / 100;
+        mahalend.supply(assetToSupply, amountToSupply, who, 0);
 
         // borrow the amount
-        mahalend.borrow(asset, borrowAmount + premium, 2, 0, who);
+        mahalend.borrow(assetToBorrow, amountToBorrow + premium, 2, 0, who);
 
         // repay the flashloan
-        IERC20(asset).approve(address(POOL), amount + premium);
+        IERC20(assetToBorrow).approve(address(POOL), amountToBorrow + premium);
+    }
+
+    function _closePositionInFlashloan(
+        address assetToRepay,
+        address assetToWithdraw,
+        uint256 amountToRepay,
+        uint256 amountToWithdraw,
+        uint256 premium,
+        address who
+    ) internal {
+        // we have the borrowed funds
+        // approve pool
+        IERC20(assetToRepay).approve(address(mahalend), amountToRepay);
+
+        // supply the asset to mahalend
+        mahalend.repay(assetToRepay, amountToRepay, 0, who);
+
+        // withdraw
+        mahalend.withdraw(assetToWithdraw, amountToWithdraw + premium, who);
+
+        // repay the flashloan
+        IERC20(assetToWithdraw).approve(
+            address(POOL),
+            amountToWithdraw + premium
+        );
     }
 }
