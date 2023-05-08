@@ -127,7 +127,8 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
                 premium,
                 who,
                 assetToLeverage,
-                assetToBorrow
+                assetToBorrow,
+                0
             );
 
         return true;
@@ -158,7 +159,8 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
         uint256 premium,
         address who,
         address assetToLeverage,
-        address assetToBorrow
+        address assetToBorrow,
+        uint256 borrowAmount
     ) internal {
         // todo
         // we have the borrowed funds
@@ -167,9 +169,6 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
 
         // supply the asset to mahalend
         mahalend.supply(assetToLeverage, amount, who, 0);
-
-        // calculate how much to borrow of that same asset
-        uint256 borrowAmount = (amount * ltv) / 100;
 
         // borrow the amount
         mahalend.borrow(asset, borrowAmount + premium, 2, 0, who);
