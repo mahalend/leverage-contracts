@@ -29,27 +29,39 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
 
   function executeOperation(
     address debtAsset, // usdc
-    uint256 amount, // loan amount 100$ usdc
+    uint256 amount, // loan amount 2 usdc
     uint256 premium,
     address initiator,
     bytes calldata params
   ) external override returns (bool) {
     //logic added here
-    (address collateralAsset, address user, uint256 amountCollateral, uint256 amountToBorrow) = abi.decode(
+    console.log('38');
+    (address collateralAsset, //weth
+    address user, 
+    uint256 amountCollateral, //0.0001
+    uint256 amountToBorrow  //0.000-1
+    ) = abi.decode(
       params,
       (address, address, uint256, uint256)
     );
 
     uint256 amountOwed = amount + premium;
 
-    //supply 100$ usdc to mahalend
+    console.log('50');
+    //approve to the mahalend contract
+    IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
+
+    console.log('54');
+    //supply 2 usdc to mahalend
     mahalend.supply(debtAsset, amount, user, 0);
 
-    //borrow 50$ eth from mahalend
+    console.log('58');
+    //borrow 0.0001 weth from mahalend
     mahalend.borrow(collateralAsset, amountCollateral, 2, 0, user);
-    
-    //swaping 50 eth borrowed -> 50$ usdc
-    uint256 swapAmount = amountCollateral + amountToBorrow;
+
+    IERC20(collateralAsset).approve(address(swap), type(uint256).max);
+
+        uint256 swapAmount = amountCollateral + amountToBorrow;
     swap.executeSwapOutMin(collateralAsset, debtAsset, swapAmount, amountOwed, ISwapRouter.ExchangeRoute.UNISWAP_V3, params);
 
 
@@ -61,10 +73,10 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
 
   function requestETHShort(
     address _debtAsset, // usdc
-    uint256 _amountDebt, // 100$
-    address _collateralAsset,  // eth
-    uint256 _amountCollateral, // 50$
-    uint256 _amountToBorrow,
+    uint256 _amountDebt, // 1 usdc
+    address _collateralAsset,  // weth
+    uint256 _amountCollateral, // 0.001weth
+    uint256 _amountToBorrow, // 0.001 weth
     address _userAddress
   ) public {
     address receiverAddress = address(this);
@@ -77,6 +89,7 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
 
     bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow);
 
+    console.log('94');
     IERC20(_collateralAsset).transferFrom(
             msg.sender,
             address(this),
