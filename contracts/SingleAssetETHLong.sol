@@ -6,11 +6,9 @@ import { IPoolAddressesProvider } from "@aave/core-v3/contracts/interfaces/IPool
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 
-import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
+import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
-
-import "hardhat/console.sol";
 
 contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
   address payable owner;
@@ -38,43 +36,43 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     (address collateralAsset, //usdc
     address user, 
     uint256 amountCollateral, //0.5 usdc
-    uint256 amountToBorrow //0.5 usdc
+    uint256 amountToBorrow, //0.5 usdc
+    uint24 fee
     ) = abi.decode(
       params,
-      (address, address, uint256, uint256)
+      (address, address, uint256, uint256, uint24)
     );
 
     uint256 amountOwed = amount + premium;
 
-    console.log('46');
-
     //approve to the mahalend contract
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
-    
-    console.log('before supply debtAsset balance', IERC20(debtAsset).balanceOf(address(this)));
-    console.log('collateralAsset balance', IERC20(collateralAsset).balanceOf(address(this)));
 
-    console.log('50');
+    
     //supply 0.1 weth to mahalend
     mahalend.supply(debtAsset, amount, user, 0);
 
-    console.log('after supply debtAsset balance', IERC20(debtAsset).balanceOf(address(this)));
-
-
-    console.log('54');
+    
     //borrow 0.5 usdc from mahalend
     mahalend.borrow(collateralAsset, amountToBorrow, 2, 0, user);
 
-    console.log('58');
     //approve to the swap func
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
-    
-    //swaping 50 usdc borrowed + 50 usdc from user -> 100$ eth
-    uint256 swapAmount = amountCollateral + amountToBorrow;
-    console.log('60');
-    swap.executeSwapOutMin(collateralAsset, debtAsset, swapAmount, amountOwed, ISwapRouter.ExchangeRoute.UNISWAP_V3, params);
 
-    console.log('63');
+    ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
+      tokenIn: collateralAsset,
+      tokenOut: debtAsset,
+      fee: fee,
+      recipient: address(this),
+      deadline: block.timestamp,
+      amountOut:amountOwed,
+      amountInMaximum: IERC20(collateralAsset).balanceOf(address(this)),
+      sqrtPriceLimitX96: 0
+    });
+    
+    swap.exactOutputSingle(swapParams);
+
+    
     // then repay the loan with the below code.
     IERC20(debtAsset).approve(address(POOL), amountOwed);
 
@@ -83,22 +81,20 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
 
   function requestETHLong(
     address _debtAsset, // weth
-    uint256 _amountDebt, // 0.1$
+    uint256 _amountDebt, // 0.1
     address _collateralAsset,  // usdc
     uint256 _amountCollateral, // 0.5 usdc
     uint256 _amountToBorrow, //0.5 usdc
-    address _userAddress
+    address _userAddress,
+    uint24 _fee
   ) public {
     address receiverAddress = address(this);
     address asset = _debtAsset;
     uint256 amountCollateral = _amountCollateral;
     uint256 loanAmount = _amountDebt;
-    uint16 referralCode = 0;
+    uint16 referralCode = 0;   
 
-    console.log("collateral address", _collateralAsset);
-   
-
-    bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow);
+    bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow, _fee);
 
     IERC20(_collateralAsset).transferFrom(
             _userAddress,
@@ -113,6 +109,11 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     IERC20(asset).transfer(
       _userAddress,
       IERC20(asset).balanceOf(address(this))
+    );
+
+    IERC20(_collateralAsset).transfer(
+      _userAddress,
+      IERC20(_collateralAsset).balanceOf(address(this))
     );
   }
 

@@ -1,6 +1,6 @@
 import { ethers, network } from "hardhat";
 import * as helpers from "@nomicfoundation/hardhat-network-helpers";
-
+import mahaLendJson from './abi/mahalendDebt.json';
 
 async function main() {
     const ETHLong = await ethers.getContractFactory("SingleAssetETHLong");
@@ -21,18 +21,12 @@ main().catch((error) => {
 });
 
 async function executeETHLong(ELContract: any) {
+    const contract = new ethers.Contract("0x571befd7972a4fc8804d493ffec2183370ad2696", mahaLendJson)
     console.log(`Deploying to ${network.name}...`);
 
     //user
     const elvin = "0x9790C67E6062ce2965517E636377B954FA2d1afA";
-    await helpers.impersonateAccount(elvin);
     const elvinSigner = await ethers.getSigner(elvin);
-    await helpers.setBalance(elvin, ethers.utils.parseEther('1'))
-
-    //mahalend deployer
-    const address = "0xC97F87cE2673C5225843f9df631DDa331cab3286"; // mahalend deployer
-    await helpers.impersonateAccount(address);
-    await helpers.setBalance(address, ethers.utils.parseEther('1'))
 
     //usdc token
     const usdc = await ethers.getContractAt(
@@ -54,6 +48,10 @@ async function executeETHLong(ELContract: any) {
     //usdc to contact approve -> ELContract to pool
     await usdc.connect(elvinSigner).approve(ELContract.address, debtToCover)
 
+    //delegation approval to contract
+    await contract.connect(elvinSigner).approveDelegation(ELContract.address, "999999000000000000000000")
+
+
     console.log('ETHLong func')
     //Calling the ETHLong Function
     await ELContract.connect(elvinSigner).requestETHLong(
@@ -61,7 +59,8 @@ async function executeETHLong(ELContract: any) {
         1000000000000000,
         usdc.address,
         500000,
-        500000,
-        elvinSigner.getAddress()
+        1400000,
+        elvinSigner.getAddress(),
+        500
     )
 }

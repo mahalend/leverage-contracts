@@ -9,9 +9,6 @@ import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contra
 import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
-
-import "hardhat/console.sol";
-
 contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
   address payable owner;
   IPool public mahalend;
@@ -35,7 +32,6 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
     bytes calldata params
   ) external override returns (bool) {
     //logic added here
-    console.log('38');
     (address collateralAsset, //weth
     address user, 
     uint256 amountCollateral, //0.0001
@@ -47,21 +43,18 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
 
     uint256 amountOwed = amount + premium;
 
-    console.log('50');
-    //approve to the mahalend contract
+   //approve to the mahalend contract
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
 
-    console.log('54');
     //supply 2 usdc to mahalend
     mahalend.supply(debtAsset, amount, user, 0);
 
-    console.log('58');
     //borrow 0.0001 weth from mahalend
     mahalend.borrow(collateralAsset, amountCollateral, 2, 0, user);
 
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
 
-        uint256 swapAmount = amountCollateral + amountToBorrow;
+    uint256 swapAmount = amountCollateral + amountToBorrow;
     swap.executeSwapOutMin(collateralAsset, debtAsset, swapAmount, amountOwed, ISwapRouter.ExchangeRoute.UNISWAP_V3, params);
 
 
@@ -89,7 +82,6 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
 
     bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow);
 
-    console.log('94');
     IERC20(_collateralAsset).transferFrom(
             msg.sender,
             address(this),
