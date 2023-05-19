@@ -66,19 +66,19 @@ async function executeCreateKernalAccount(KFContract: KernelFactory, ELContract:
 
     //transfer 1 usdc from user account to kernel account
     const usdcTransferFrom = await usdc.interface.encodeFunctionData('transferFrom', [elvin, kernalAaccount.address, 1000000])
-    await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcTransferFrom, 0);
+    // await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcTransferFrom, 0);
 
     //usdc approve for mahalend contract
     const usdcMahalendApprove = await usdc.interface.encodeFunctionData('approve', ['0x88c6a98430Cc833E168430DaC427e9796C9EC576', debtToCover])
-    await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcMahalendApprove, 0);
+    // await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcMahalendApprove, 0);
 
     //usdc approve to ETHLong Contract contract
     const usdcKernalApprove = await usdc.interface.encodeFunctionData('approve', [ELContract.address, debtToCover]);
-    await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcKernalApprove, 0);
+    // await kernalAaccount.connect(elvinSigner).executeAndRevert(usdc.address, 0, usdcKernalApprove, 0);
 
     //Mahalend delegation approval to Kernal contract
     const mahalendKernelDelApprove = await mahalendContract.interface.encodeFunctionData('approveDelegation', [ELContract.address, debtToCover]);
-    await kernalAaccount.connect(elvinSigner).executeAndRevert(mahalendContract.address, 0, mahalendKernelDelApprove, 0)
+    // await kernalAaccount.connect(elvinSigner).executeAndRevert(mahalendContract.address, 0, mahalendKernelDelApprove, 0)
 
 
     // deposit 1 usdc
@@ -93,6 +93,13 @@ async function executeCreateKernalAccount(KFContract: KernelFactory, ELContract:
 
 
     const requestELKernel = await ELContract.interface.encodeFunctionData('requestETHLong', [weth.address, 1110000000000000, usdc.address, 1000000, 1100000, kernalAaccount.address, 500]);
-    await kernalAaccount.connect(elvinSigner).executeAndRevert(ELContract.address, 0, requestELKernel, 0)
+    // await kernalAaccount.connect(elvinSigner).executeAndRevert(ELContract.address, 0, requestELKernel, 0)
 
+
+    const addressArray = [usdc.address, usdc.address, usdc.address, mahalendContract.address, ELContract.address];
+    const valueArray = [0, 0, 0, 0, 0];
+    const functionDataArray = [usdcTransferFrom, usdcMahalendApprove, usdcKernalApprove, mahalendKernelDelApprove, requestELKernel];
+    const operationArray = [0, 0, 0, 0, 0];
+
+    await kernalAaccount.connect(elvinSigner).executeAndRevertMultiple(addressArray, valueArray, functionDataArray, operationArray)
 }
