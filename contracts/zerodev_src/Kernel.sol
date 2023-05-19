@@ -2,11 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "./plugin/IPlugin.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {EntryPoint} from  "@account-abstraction/contracts/core/EntryPoint.sol";
+import {EntryPoint} from "@account-abstraction/contracts/core/EntryPoint.sol";
+
+import "./plugin/IPlugin.sol";
 import "./utils/Exec.sol";
 import "./abstract/Compatibility.sol";
 import "./abstract/KernelStorage.sol";
@@ -24,7 +26,9 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
 
     string public constant version = "0.0.1";
 
-    constructor(IEntryPoint _entryPoint) EIP712(name, version) KernelStorage(_entryPoint) {}
+    constructor(
+        IEntryPoint _entryPoint
+    ) EIP712(name, version) KernelStorage(_entryPoint) {}
 
     /// @notice initialize wallet kernel
     /// @dev this function should be called only once, implementation initialize is blocked by owner = address(1)
@@ -56,9 +60,15 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
     /// @param value value to be sent
     /// @param data data to be sent
     /// @param operation operation type (call or delegatecall)
-    function executeAndRevert(address to, uint256 value, bytes calldata data, Operation operation) public {
+    function executeAndRevert(
+        address to,
+        uint256 value,
+        bytes calldata data,
+        Operation operation
+    ) public {
         require(
-            msg.sender == address(entryPoint) || msg.sender == getKernelStorage().owner,
+            msg.sender == address(entryPoint) ||
+                msg.sender == getKernelStorage().owner,
             "account: not from entrypoint or owner"
         );
         bool success;
@@ -75,10 +85,36 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
         }
     }
 
-    function executeAndRevertMultiple(address[] memory to, uint256[] memory value, bytes[] calldata data, Operation[] memory operation) external {
+    function executeAndRevertMultiple(
+        address[] memory to,
+        uint256[] memory value,
+        bytes[] calldata data,
+        Operation[] memory operation
+    ) external {
         for (uint256 index = 0; index < to.length; index++) {
-            executeAndRevert(to[index], value[index], data[index], operation[index]);
+            executeAndRevert(
+                to[index],
+                value[index],
+                data[index],
+                operation[index]
+            );
         }
+    }
+
+    function flushERC20(address token, address to) external {
+        require(
+            msg.sender == getKernelStorage().owner,
+            "account: not from  owner"
+        );
+        IERC20(token).transfer(to, IERC20(token).balanceOf(address(this)));
+    }
+
+    function flushETH(address to) external {
+        require(
+            msg.sender == getKernelStorage().owner,
+            "account: not from  owner"
+        );
+        payable(to).transfer(address(this).balance);
     }
 
     /// @notice validate user operation
@@ -87,11 +123,15 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
     /// @param userOpHash user operation hash
     /// @param missingAccountFunds funds needed to be reimbursed
     /// @return validationData validation data
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
-        external
-        returns (uint256 validationData)
-    {
-        require(msg.sender == address(entryPoint), "account: not from entryPoint");
+    function validateUserOp(
+        UserOperation calldata userOp,
+        bytes32 userOpHash,
+        uint256 missingAccountFunds
+    ) external returns (uint256 validationData) {
+        require(
+            msg.sender == address(entryPoint),
+            "account: not from entryPoint"
+        );
         if (userOp.signature.length == 65) {
             validationData = _validateUserOp(userOp, userOpHash);
         } else if (userOp.signature.length > 97) {
@@ -100,7 +140,10 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
             uint48 validUntil = uint48(bytes6(userOp.signature[20:26]));
             uint48 validAfter = uint48(bytes6(userOp.signature[26:32]));
             bytes memory signature = userOp.signature[32:97];
-            (bytes memory data,) = abi.decode(userOp.signature[97:], (bytes, bytes));
+            (bytes memory data, ) = abi.decode(
+                userOp.signature[97:],
+                (bytes, bytes)
+            );
             bytes32 digest = _hashTypedDataV4(
                 keccak256(
                     abi.encode(
@@ -119,7 +162,12 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
             if (getKernelStorage().owner != signer) {
                 return SIG_VALIDATION_FAILED;
             }
-            bytes memory ret = _delegateToPlugin(plugin, userOp, userOpHash, missingAccountFunds);
+            bytes memory ret = _delegateToPlugin(
+                plugin,
+                userOp,
+                userOpHash,
+                missingAccountFunds
+            );
             bool res = abi.decode(ret, (bool));
             if (!res) {
                 return SIG_VALIDATION_FAILED;
@@ -130,17 +178,16 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
         }
         if (missingAccountFunds > 0) {
             // we are going to assume signature is valid at this point
-            (bool success,) = msg.sender.call{value: missingAccountFunds}("");
+            (bool success, ) = msg.sender.call{value: missingAccountFunds}("");
             (success);
             return validationData;
         }
     }
 
-    function _validateUserOp(UserOperation calldata userOp, bytes32 userOpHash)
-        internal
-        view
-        returns (uint256 validationData)
-    {
+    function _validateUserOp(
+        UserOperation calldata userOp,
+        bytes32 userOpHash
+    ) internal view returns (uint256 validationData) {
         WalletKernelStorage storage ws = getKernelStorage();
         if (ws.owner == ECDSA.recover(userOpHash, userOp.signature)) {
             return validationData;
@@ -162,8 +209,12 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
         bytes32 opHash,
         uint256 missingAccountFunds
     ) internal returns (bytes memory) {
-        bytes memory data =
-            abi.encodeWithSelector(IPlugin.validatePluginData.selector, userOp, opHash, missingAccountFunds);
+        bytes memory data = abi.encodeWithSelector(
+            IPlugin.validatePluginData.selector,
+            userOp,
+            opHash,
+            missingAccountFunds
+        );
         (bool success, bytes memory ret) = Exec.delegateCall(plugin, data); // Q: should we allow value > 0?
         if (!success) {
             assembly {
@@ -177,7 +228,10 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
     /// @dev this function will validate signature using eip1271
     /// @param _hash hash to be signed
     /// @param _signature signature
-    function isValidSignature(bytes32 _hash, bytes memory _signature) public view override returns (bytes4) {
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory _signature
+    ) public view override returns (bytes4) {
         WalletKernelStorage storage ws = getKernelStorage();
         if (ws.owner == ECDSA.recover(_hash, _signature)) {
             return 0x1626ba7e;
