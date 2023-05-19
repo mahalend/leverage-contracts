@@ -26,21 +26,20 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
   }
 
   function executeOperation(
-    address debtAsset, // weth
-    uint256 amount, // loan amount 0.1 weth
+    address debtAsset,
+    uint256 amount,
     uint256 premium,
     address initiator,
     bytes calldata params
   ) external override returns (bool) {
     //logic added here
-    (address collateralAsset, //usdc
+    (address collateralAsset,
     address user, 
-    uint256 amountCollateral, //0.5 usdc
-    uint256 amountToBorrow, //0.5 usdc
+    uint256 amountToBorrow,
     uint24 fee
     ) = abi.decode(
       params,
-      (address, address, uint256, uint256, uint24)
+      (address, address, uint256, uint24)
     );
 
     uint256 amountOwed = amount + premium;
@@ -58,6 +57,8 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
 
     //approve to the swap func
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
+    IERC20(debtAsset).approve(address(swap), type(uint256).max);
+
 
     ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
       tokenIn: collateralAsset,
@@ -80,11 +81,11 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
   }
 
   function requestETHLong(
-    address _debtAsset, // weth
-    uint256 _amountDebt, // 0.1
-    address _collateralAsset,  // usdc
-    uint256 _amountCollateral, // 0.5 usdc
-    uint256 _amountToBorrow, //0.5 usdc
+    address _debtAsset,
+    uint256 _amountDebt,
+    address _collateralAsset,
+    uint256 _amountCollateral,
+    uint256 _amountToBorrow,
     address _userAddress,
     uint24 _fee
   ) public {
@@ -94,7 +95,7 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     uint256 loanAmount = _amountDebt;
     uint16 referralCode = 0;   
 
-    bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow, _fee);
+    bytes memory params = abi.encode(_collateralAsset, _userAddress, _amountToBorrow, _fee);
 
     IERC20(_collateralAsset).transferFrom(
             _userAddress,

@@ -6,7 +6,46 @@ const { ALCHEMY_KEY, PRIVATE_KEY, API_KEY } = process.env;
 
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.10",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.0",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        },
+      },
+      {
+        version: "0.8.7",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        },
+      },
+      {
+        version: "0.8.10",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        },
+      },
+      {
+        version: "0.8.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        },
+      },
+    ],
+  },
   networks: {
     hardhat: {
       forking: {
@@ -23,6 +62,10 @@ const config: HardhatUserConfig = {
       url: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`,
       accounts: [PRIVATE_KEY || ""],
     },
+    tenderly: {
+      url: `https://rpc.tenderly.co/fork/3ceb1b0e-2923-4e94-ae8a-a40facf15033`,
+      accounts: [PRIVATE_KEY || ""],
+    }
   },
   etherscan: {
     apiKey: {

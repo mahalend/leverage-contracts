@@ -1,0 +1,9 @@
+[submodule "CandideWalletContracts"]
+	path = CandideWalletContracts
+	url = https://github.com/candidelabs/CandideWalletContracts.git
+[submodule "etherspot-contracts"]
+	path = etherspot-contracts
+	url = https://github.com/etherspot/etherspot-contracts.git
+[submodule "zerodev-wallet-kernel"]
+	path = zerodev-wallet-kernel
+	url = https://github.com/zerodevapp/zerodev-wallet-kernel.git
