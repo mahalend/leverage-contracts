@@ -130,14 +130,7 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
                 who
             );
         else if (action == 1)
-            _closePositionInFlashloan(
-                assetToLeverage,
-                flashloanedAsset,
-                amountToBorrowOrRepay,
-                amount,
-                premium,
-                who
-            );
+            _closePositionInFlashloan(assetToLeverage, assetToBorrow, 0);
 
         return true;
     }
@@ -167,14 +160,17 @@ contract SingleAssetLeverage is ILeverageHelper, VersionedInitializable {
         uint256 amountToSupply,
         uint256 amountToBorrow,
         uint256 premium,
-        address who
+        address who,
+        address assetToLeverage,
+        address assetToBorrow,
+        uint256 borrowAmount
     ) internal {
         // we have the borrowed funds
         // approve pool
         IERC20(assetToSupply).approve(address(mahalend), amountToSupply);
 
         // supply the asset to mahalend
-        mahalend.supply(assetToSupply, amountToSupply, who, 0);
+        mahalend.supply(assetToLeverage, amount, who, 0);
 
         // borrow the amount
         mahalend.borrow(assetToBorrow, amountToBorrow + premium, 2, 0, who);
