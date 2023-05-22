@@ -25,39 +25,54 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
   }
 
   function executeOperation(
-    address debtAsset, // usdc
-    uint256 amount, // loan amount 2 usdc
+    address debtAsset,
+    uint256 amount,
     uint256 premium,
     address initiator,
     bytes calldata params
   ) external override returns (bool) {
     //logic added here
-    (address collateralAsset, //weth
+    (address collateralAsset,
     address user, 
-    uint256 amountCollateral, //0.0001
-    uint256 amountToBorrow  //0.000-1
+    uint256 amountToBorrow,
+    uint24 fee
     ) = abi.decode(
       params,
-      (address, address, uint256, uint256)
+      (address, address, uint256, uint24)
     );
 
     uint256 amountOwed = amount + premium;
 
-   //approve to the mahalend contract
+    //approve to the mahalend contract
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
 
-    //supply 2 usdc to mahalend
+    
+    //supply usdc to mahalend
     mahalend.supply(debtAsset, amount, user, 0);
 
-    //borrow 0.0001 weth from mahalend
-    mahalend.borrow(collateralAsset, amountCollateral, 2, 0, user);
+    
+    //borrow weth from mahalend
+    mahalend.borrow(collateralAsset, amountToBorrow, 2, 0, user);
 
+    //approve to the swap func
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
-
-    uint256 swapAmount = amountCollateral + amountToBorrow;
-    swap.executeSwapOutMin(collateralAsset, debtAsset, swapAmount, amountOwed, ISwapRouter.ExchangeRoute.UNISWAP_V3, params);
+    IERC20(debtAsset).approve(address(swap), type(uint256).max);
 
 
+    ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
+      tokenIn: collateralAsset,
+      tokenOut: debtAsset,
+      fee: fee,
+      recipient: address(this),
+      deadline: block.timestamp,
+      amountOut:amountOwed,
+      amountInMaximum: IERC20(collateralAsset).balanceOf(address(this)),
+      sqrtPriceLimitX96: 0
+    });
+    
+    swap.exactOutputSingle(swapParams);
+
+    
     // then repay the loan with the below code.
     IERC20(debtAsset).approve(address(POOL), amountOwed);
 

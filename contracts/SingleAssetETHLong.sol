@@ -9,11 +9,11 @@ import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contra
 import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
-
 contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
   address payable owner;
   IPool public mahalend;
   ISwapRouter public swap;
+
 
   constructor(
     address _addressProvider,
@@ -110,11 +110,6 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     IERC20(asset).transfer(
       _userAddress,
       IERC20(asset).balanceOf(address(this))
-    );
-
-    IERC20(_collateralAsset).transfer(
-      _userAddress,
-      IERC20(_collateralAsset).balanceOf(address(this))
     );
   }
 
