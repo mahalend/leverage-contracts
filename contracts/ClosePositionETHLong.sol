@@ -47,14 +47,10 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     uint256 amountOwed = amount + premium;
 
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
-    IERC20(collateralAsset).approve(address(mahalend), type(uint256).max);
 
     // 2. repay USDC debt
     mahalend.repay(debtAsset, amount,2, user);
 
-    console.log('after mUSDC', IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(user));
-
-    console.log('allowance', IERC20(0x67C38e607e75002Cea9abec642B954f27204dda5).allowance(user, address(this)));
 
     IERC20(0x67C38e607e75002Cea9abec642B954f27204dda5).transferFrom(
       user,
@@ -82,7 +78,6 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     
     swap.exactOutputSingle(swapParams);
 
-    
 // 5. repay USDC flashloan
     IERC20(debtAsset).approve(address(POOL), amountOwed);
 
@@ -102,8 +97,6 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     address asset = _closingDebtAsset;
     uint256 loanAmount = IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(msg.sender);
     uint16 referralCode = 0;   
-
-    console.log('before mUSDC', IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(msg.sender));
 
     bytes memory params = abi.encode(_collateralAsset, _userAddress, _amountToWithdraw, _fee);
 

@@ -119,7 +119,7 @@ async function executeCreateKernalAccount(closeELContract: ClosePositionETHLong)
 
     await kernalAaccount.connect(elvinSigner).executeAndRevert(closeELContract.address, 0, requestClosePosition, 0);
 
-    await kernalAaccount.connect(elvinSigner).flushERC20(weth.address, await elvinSigner.getAddress());
+    // await kernalAaccount.connect(elvinSigner).flushERC20(weth.address, await elvinSigner.getAddress());
 
 
     console.log('close position flow end');
