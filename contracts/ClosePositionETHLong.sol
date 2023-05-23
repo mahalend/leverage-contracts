@@ -44,6 +44,7 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
       (address, address, uint256, uint24)
     );
 
+    address _mWETH = 0x67C38e607e75002Cea9abec642B954f27204dda5;
     uint256 amountOwed = amount + premium;
 
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
@@ -52,7 +53,7 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     mahalend.repay(debtAsset, amount,2, user);
 
 
-    IERC20(0x67C38e607e75002Cea9abec642B954f27204dda5).transferFrom(
+    IERC20(_mWETH).transferFrom(
       user,
       address(this),
       amountToWithdraw
