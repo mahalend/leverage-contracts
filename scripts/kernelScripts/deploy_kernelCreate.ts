@@ -91,7 +91,13 @@ async function executeCreateKernalAccount(KFContract: KernelFactory, ELContract:
     // swap 2.1 usdc for 2$ eth
     // payback 2$ eth
 
-
+    //closing flow
+    //flashloan 1.1 usdc 
+    //repay 1.1 usdc to mahalend
+    // withdraw 2$ of weth
+    // swap 2$ weth for usdc
+    //payback flashloan for usdc
+    //return 0.9 usdc
     const requestELKernel = await ELContract.interface.encodeFunctionData('requestETHLong', [weth.address, 1110000000000000, usdc.address, 1000000, 1100000, kernalAaccount.address, 500]);
     // await kernalAaccount.connect(elvinSigner).executeAndRevert(ELContract.address, 0, requestELKernel, 0)
 

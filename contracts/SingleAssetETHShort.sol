@@ -6,7 +6,7 @@ import { IPoolAddressesProvider } from "@aave/core-v3/contracts/interfaces/IPool
 import { IPool } from "@aave/core-v3/contracts/interfaces/IPool.sol";
 import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 
-import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
+import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
 contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {

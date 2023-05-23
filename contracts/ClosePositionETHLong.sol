@@ -1,6 +1,3 @@
-// a user has a position with ETH as collateral (leveraged) and USDC as debt and USDC as deposit asset
-
-
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
@@ -11,6 +8,8 @@ import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contra
 
 import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
+
+import 'hardhat/console.sol';
 
 contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
   address payable owner;
@@ -38,7 +37,7 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     //logic added here
     (address collateralAsset,
     address user, 
-    uint256 amountToBorrow,
+    uint256 amountToWithdraw,
     uint24 fee
     ) = abi.decode(
       params,
@@ -48,19 +47,28 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
     uint256 amountOwed = amount + premium;
 
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
+    IERC20(collateralAsset).approve(address(mahalend), type(uint256).max);
 
-    // 2. payback USDC debt
-    mahalend.supply(debtAsset, amount, user, 0);
+    // 2. repay USDC debt
+    mahalend.repay(debtAsset, amount,2, user);
 
+    console.log('after mUSDC', IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(user));
+
+    console.log('allowance', IERC20(0x67C38e607e75002Cea9abec642B954f27204dda5).allowance(user, address(this)));
+
+    IERC20(0x67C38e607e75002Cea9abec642B954f27204dda5).transferFrom(
+      user,
+      address(this),
+      amountToWithdraw
+    );
     
 // 3. withdraw WETH collateral
-    mahalend.borrow(collateralAsset, amountToBorrow, 2, 0, user);
+    mahalend.withdraw(collateralAsset, amountToWithdraw, address(this));
 
     //approve to the swap func
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
-    IERC20(debtAsset).approve(address(swap), type(uint256).max);
 
-// 4. sell ETH for USDC = 100%
+// 4. sell WETH for USDC = 100%
     ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
       tokenIn: collateralAsset,
       tokenOut: debtAsset,
@@ -85,26 +93,19 @@ contract ClosePositionETHLong is FlashLoanSimpleReceiverBase {
 
   function requestCloseETHLong(
     address _closingDebtAsset, //usdc as debt
-    uint256 _closingAmountDebt,
     address _collateralAsset, // weth as collateral
-    uint256 _amountCollateral,
-    uint256 _amountToBorrow,
+    uint256 _amountToWithdraw,
     address _userAddress,
     uint24 _fee
   ) public {
     address receiverAddress = address(this);
     address asset = _closingDebtAsset;
-    uint256 amountCollateral = _amountCollateral;
-    uint256 loanAmount = _closingAmountDebt;
+    uint256 loanAmount = IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(msg.sender);
     uint16 referralCode = 0;   
 
-    bytes memory params = abi.encode(_collateralAsset, _userAddress, _amountToBorrow, _fee);
+    console.log('before mUSDC', IERC20(0x571BeFd7972A4fc8804D493fFEc2183370ad2696).balanceOf(msg.sender));
 
-    IERC20(_collateralAsset).transferFrom(
-            _userAddress,
-            receiverAddress,
-            amountCollateral
-        );
+    bytes memory params = abi.encode(_collateralAsset, _userAddress, _amountToWithdraw, _fee);
 
 // 1. flashloan USDC = USDC in debt
     POOL.flashLoanSimple(receiverAddress, asset, loanAmount, params, referralCode);
