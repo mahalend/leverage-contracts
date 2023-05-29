@@ -10,6 +10,7 @@ import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRou
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
 contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
+
   address payable owner;
   IPool public mahalend;
   ISwapRouter public swap;
@@ -31,150 +32,105 @@ contract SingleAssetETHShort is FlashLoanSimpleReceiverBase {
     address initiator,
     bytes calldata params
   ) external override returns (bool) {
-    //logic added here
+
     (address collateralAsset,
-    address user, 
-    uint256 amountToBorrow,
+    uint256 mahalendAmount,
     uint24 fee,
-    uint positionFlag
+    uint positionFlag,
+    address collateralDebtTokenAddress
     ) = abi.decode(
       params,
-      (address, address, uint256, uint24, uint)
+      (address, uint256, uint24, uint, address)
     );
 
-    uint256 amountOwed = amount + premium;
-    address _mUSDC = 0x81A9fDd7bDFc4055B3f57E3e93f1c916c1a7D329;
-
-    //approve to the mahalend contract
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
 
     //if flag is 0 then it's open position else it is close position
     if(positionFlag == 0){
-       //supply usdc to mahalend
-    mahalend.supply(debtAsset, amount, user, 0);
+
+    mahalend.supply(debtAsset, amount, initiator, 0);
+
+    mahalend.borrow(collateralAsset, mahalendAmount, 2, 0, initiator);
 
     
-    //borrow weth from mahalend
-    mahalend.borrow(collateralAsset, amountToBorrow, 2, 0, user);
-
-    //approve to the swap func
-    IERC20(collateralAsset).approve(address(swap), type(uint256).max);
-    IERC20(debtAsset).approve(address(swap), type(uint256).max);
-
-
-    ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
-      tokenIn: collateralAsset,
-      tokenOut: debtAsset,
-      fee: fee,
-      recipient: address(this),
-      deadline: block.timestamp,
-      amountOut:amountOwed,
-      amountInMaximum: IERC20(collateralAsset).balanceOf(address(this)),
-      sqrtPriceLimitX96: 0
-    });
-    
-    swap.exactOutputSingle(swapParams);
-
-    
-    // then repay the loan with the below code.
-    IERC20(debtAsset).approve(address(POOL), amountOwed);
     } else {
 
-      // 2. repay weth debt
-    mahalend.repay(debtAsset, amount,2, user);
+    mahalend.repay(debtAsset, amount,2, initiator);
 
-
-    IERC20(_mUSDC).transferFrom(
-      user,
+    IERC20(collateralDebtTokenAddress).transferFrom(
+      initiator,
       address(this),
-      amountToWithdraw
+      mahalendAmount
     );
     
-// 3. withdraw usdc collateral
-    mahalend.withdraw(collateralAsset, amountToWithdraw, address(this));
+    mahalend.withdraw(collateralAsset, mahalendAmount, address(this));
 
-    //approve to the swap func
+    }
+
     IERC20(collateralAsset).approve(address(swap), type(uint256).max);
 
-// 4. sell usdc for weth = 100%
     ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
       tokenIn: collateralAsset,
       tokenOut: debtAsset,
       fee: fee,
       recipient: address(this),
       deadline: block.timestamp,
-      amountOut:amountOwed,
+      amountOut:amount + premium,
       amountInMaximum: IERC20(collateralAsset).balanceOf(address(this)),
       sqrtPriceLimitX96: 0
     });
     
     swap.exactOutputSingle(swapParams);
 
-// 5. repay weth flashloan
-    IERC20(debtAsset).approve(address(POOL), amountOwed);
-
-    }
+    IERC20(debtAsset).approve(address(POOL), amount + premium);
 
     return true;
   }
 
-  function requestETHShort(
-    address _debtAsset, // usdc
-    uint256 _amountDebt, // 1 usdc
-    address _collateralAsset,  // weth
-    uint256 _amountCollateral, // 0.001weth
-    uint256 _amountToBorrow, // 0.001 weth
-    address _userAddress,
+  function requestOpenETHShort(
+    address _debtAsset,
+    uint256 _amountDebt,
+    address _collateralAsset,
+    uint256 _amountCollateral,
+    uint256 _amountToBorrow,
     uint24 _fee
   ) public {
-    address receiverAddress = address(this);
-    address asset = _debtAsset;
-    uint256 amountCollateral = _amountCollateral;
-    uint256 loanAmount = _amountDebt;
-    uint16 referralCode = 0;
-    uint positionFlag = 0;
 
-    bytes memory params = abi.encode(_collateralAsset, _userAddress, amountCollateral, _amountToBorrow, _fee, positionFlag);
+    bytes memory params = abi.encode(_collateralAsset, _amountToBorrow, _fee, 0, 0x0);
 
     IERC20(_collateralAsset).transferFrom(
             msg.sender,
             address(this),
-            amountCollateral
+            _amountCollateral
         );
 
     // take flashloan of the debt
-    POOL.flashLoanSimple(receiverAddress, asset, loanAmount, params, referralCode);
+    POOL.flashLoanSimple(address(this), _debtAsset, _amountDebt, params, 0);
 
     // send the profits to the caller to be done.
-    IERC20(asset).transfer(
-      _userAddress,
-      IERC20(asset).balanceOf(address(this))
+    IERC20(_debtAsset).transfer(
+      msg.sender,
+      IERC20(_debtAsset).balanceOf(address(this))
     );
   }
 
-   function requestCloseETHLong(
-    address _closingDebtAsset, //weth as debt
-    address _collateralAsset, // usdc as collateral
+   function requestCloseETHShort(
+    address _closingDebtAsset,
+    address _collateralAsset, 
     uint256 _amountToWithdraw,
-    address _userAddress,
-    uint24 _fee
+    uint24 _fee,
+    address _variableDebtTokenAddress,
+    address _collateralDebtTokenAddress
   ) public {
-    address receiverAddress = address(this);
-    address asset = _closingDebtAsset;
-    address variableDebt = 0x571BeFd7972A4fc8804D493fFEc2183370ad2696;
-    uint256 loanAmount = IERC20(variableDebt).balanceOf(msg.sender);
-    uint16 referralCode = 0;
-    uint positionFlag = 1;
+    uint256 loanAmount = IERC20(_variableDebtTokenAddress).balanceOf(msg.sender);
 
-    bytes memory params = abi.encode(_collateralAsset, _userAddress, _amountToWithdraw, _fee, positionFlag);
+    bytes memory params = abi.encode(_collateralAsset, _amountToWithdraw, _fee, 1, _collateralDebtTokenAddress);
 
-// 1. flashloan weth = weth in debt
-    POOL.flashLoanSimple(receiverAddress, asset, loanAmount, params, referralCode);
+    POOL.flashLoanSimple(address(this), _closingDebtAsset, loanAmount, params, 0);
 
-// 6. send remaining weth to the user
-    IERC20(asset).transfer(
-      _userAddress,
-      IERC20(asset).balanceOf(address(this))
+    IERC20(_closingDebtAsset).transfer(
+      msg.sender,
+      IERC20(_closingDebtAsset).balanceOf(address(this))
     );
   }
 
