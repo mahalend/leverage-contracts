@@ -9,6 +9,7 @@ import { IERC20 } from "@aave/core-v3/contracts/dependencies/openzeppelin/contra
 import { ISwapRouter } from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {ILeverageHelper} from "./interfaces/ILeverageHelper.sol";
 
+
 contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
   address payable owner;
   IPool public mahalend;
@@ -31,31 +32,33 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     address initiator,
     bytes calldata params
   ) external override returns (bool) {
-    (address collateralAsset,
+    (
+    address collateralAsset,
     uint256 mahalendAmount,
-    uint24 fee,
     uint positionFlag,
+    address user,
     address collateralDebtTokenAddress
     ) = abi.decode(
       params,
-      (address, uint256, uint24, uint, address)
+      (address, uint256, uint24, address, address)
     );
+
 
     IERC20(debtAsset).approve(address(mahalend), type(uint256).max);
 
     //if flag is 0 then it's open position else it is close position
     if(positionFlag == 0){
         
-    mahalend.supply(debtAsset, amount, initiator, 0);
+    mahalend.supply(debtAsset, amount, user, 0);
 
-    mahalend.borrow(collateralAsset, mahalendAmount, 2, 0, initiator);
+    mahalend.borrow(collateralAsset, mahalendAmount, 2, 0, user);
 
     } else {
     
-    mahalend.repay(debtAsset, amount,2, initiator);
+    mahalend.repay(debtAsset, amount,2, user);
 
     IERC20(collateralDebtTokenAddress).transferFrom(
-      initiator,
+      user,
       address(this),
       mahalendAmount
     );
@@ -68,7 +71,7 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     ISwapRouter.ExactOutputSingleParams memory swapParams = ISwapRouter.ExactOutputSingleParams({
       tokenIn: collateralAsset,
       tokenOut: debtAsset,
-      fee: fee,
+      fee: 500,
       recipient: address(this),
       deadline: block.timestamp,
       amountOut:amount + premium,
@@ -88,11 +91,10 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     uint256 _amountDebt,
     address _collateralAsset,
     uint256 _amountCollateral,
-    uint256 _amountToBorrow,
-    uint24 _fee
+    uint256 _amountToBorrow
   ) public {
 
-    bytes memory params = abi.encode(_collateralAsset, _amountToBorrow, _fee, 0, 0x0);
+    bytes memory params = abi.encode(_collateralAsset, _amountToBorrow, 0, msg.sender, 0x0);
 
     IERC20(_collateralAsset).transferFrom(
             msg.sender,
@@ -102,9 +104,9 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
 
     POOL.flashLoanSimple(address(this), _debtAsset, _amountDebt, params, 0);
 
-    IERC20(_debtAsset).transfer(
+    IERC20(_collateralAsset).transfer(
       msg.sender,
-      IERC20(_debtAsset).balanceOf(address(this))
+      IERC20(_collateralAsset).balanceOf(address(this))
     );
   }
 
@@ -116,18 +118,17 @@ contract SingleAssetETHLong is FlashLoanSimpleReceiverBase {
     address _closingDebtAsset,
     address _collateralAsset,
     uint256 _amountToWithdraw,
-    uint24 _fee,
     address _variableDebtTokenAddress,
     address _collateralDebtTokenAddress
   ) public {
 
-    bytes memory params = abi.encode(_collateralAsset, msg.sender, _amountToWithdraw, _fee, 1, _collateralDebtTokenAddress);
+    bytes memory params = abi.encode(_collateralAsset, _amountToWithdraw, 1, msg.sender, _collateralDebtTokenAddress);
 
     POOL.flashLoanSimple(address(this), _closingDebtAsset, IERC20(_variableDebtTokenAddress).balanceOf(msg.sender), params, 0);
 
-    IERC20(_closingDebtAsset).transfer(
+    IERC20(_collateralAsset).transfer(
       msg.sender,
-      IERC20(_closingDebtAsset).balanceOf(address(this))
+      IERC20(_collateralAsset).balanceOf(address(this))
     );
   }
 }
