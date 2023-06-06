@@ -103,7 +103,7 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
 
     function flushERC20(address token, address to) external {
         require(
-            msg.sender == getKernelStorage().owner,
+            msg.sender == getKernelStorage().owner || msg.sender == address(this),
             "account: not from  owner"
         );
         IERC20(token).transfer(to, IERC20(token).balanceOf(address(this)));
@@ -111,7 +111,7 @@ contract Kernel is IAccount, EIP712, Compatibility, KernelStorage {
 
     function flushETH(address to) external {
         require(
-            msg.sender == getKernelStorage().owner,
+            msg.sender == getKernelStorage().owner || msg.sender == address(this),
             "account: not from  owner"
         );
         payable(to).transfer(address(this).balance);
