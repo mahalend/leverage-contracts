@@ -77,22 +77,56 @@ export async function calculateLeverage(_depositAmount: BigNumber, _leverageValu
 
 }
 
-export async function encodeClosePositionHelper(
+export async function encodeCloseClaimPositionHelper(
     mWethContract: Contract, //0x67C38e607e75002Cea9abec642B954f27204dda5
     wethContract: Contract,
     usdcContract: Contract,
+    rewardContract: Contract,
     ELContract: Contract,
+    KernelContract: Contract,
     variableDebtTokenAddress: string, //variableDebtmArbUSDC - 0x571BeFd7972A4fc8804D493fFEc2183370ad2696
-    stableDebtTokenAddress: BigNumber //mWETH balance
+    stableDebtTokenAddress: BigNumber, //mWETH balance
 ) {
+
     const mWethKernelApprove = await mWethContract.interface.encodeFunctionData('approve', [ELContract.address, stableDebtTokenAddress]);
 
     const requestClosePosition = await ELContract.interface.encodeFunctionData('requestCloseETHLong', [usdcContract.address, wethContract.address, stableDebtTokenAddress, variableDebtTokenAddress, mWethContract.address]);
 
-    const addressArray = [mWethContract.address, ELContract.address];
+    const claimAllRewards = await rewardContract.interface.encodeFunctionData('claimAllRewards', [[variableDebtTokenAddress, mWethContract.address], KernelContract.address]);
+
+    const flushUSDCTokens = await KernelContract.interface.encodeFunctionData('flushERC20', [usdcContract.address, '0x9790C67E6062ce2965517E636377B954FA2d1afA']);
+
+    const flushWETHTokens = await KernelContract.interface.encodeFunctionData('flushERC20', [wethContract.address, '0x9790C67E6062ce2965517E636377B954FA2d1afA']);
+
+
+
+    const addressArray = [mWethContract.address, ELContract.address, rewardContract.address, KernelContract.address, KernelContract.address];
     const valueArray = [0, 0, 0, 0, 0];
-    const functionDataArray = [mWethKernelApprove, requestClosePosition];
+    const functionDataArray = [mWethKernelApprove, requestClosePosition, claimAllRewards, flushUSDCTokens, flushWETHTokens];
     const operationArray = [0, 0, 0, 0, 0];
+
+    return { addressArray, valueArray, functionDataArray, operationArray }
+}
+
+export async function encodeClaimRewardHelper(
+    mWethContract: Contract, //0x67C38e607e75002Cea9abec642B954f27204dda5
+    wethContract: Contract,
+    usdcContract: Contract,
+    rewardContract: Contract,
+    KernelContract: Contract,
+    variableDebtTokenAddress: string, //variableDebtmArbUSDC - 0x571BeFd7972A4fc8804D493fFEc2183370ad2696
+) {
+
+    const claimAllRewards = await rewardContract.interface.encodeFunctionData('claimAllRewards', [[variableDebtTokenAddress, mWethContract.address], KernelContract.address]);
+
+    const flushUSDCTokens = await KernelContract.interface.encodeFunctionData('flushERC20', [usdcContract.address, '0x9790C67E6062ce2965517E636377B954FA2d1afA']);
+
+    const flushWETHTokens = await KernelContract.interface.encodeFunctionData('flushERC20', [wethContract.address, '0x9790C67E6062ce2965517E636377B954FA2d1afA']);
+
+    const addressArray = [rewardContract.address, KernelContract.address, KernelContract.address];
+    const valueArray = [0, 0, 0];
+    const functionDataArray = [claimAllRewards, flushUSDCTokens, flushWETHTokens];
+    const operationArray = [0, 0, 0];
 
     return { addressArray, valueArray, functionDataArray, operationArray }
 }

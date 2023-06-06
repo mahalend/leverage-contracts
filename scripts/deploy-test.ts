@@ -1,6 +1,8 @@
 import { ethers } from "hardhat";
 import mahaLendJson from './abi/mahalendDebt.json';
-import { encodeClosePositionHelper, encodeFunctionHelper } from "../test/EncodeFunctionHelper";
+import rewardContractJson from './abi/rewardContract.json';
+
+import { encodeCloseClaimPositionHelper, encodeFunctionHelper } from "../test/EncodeFunctionHelper";
 import { BigNumber } from "ethers";
 import { SingleAssetETHLong } from "../typechain-types";
 import * as helpers from "@nomicfoundation/hardhat-network-helpers";
@@ -12,17 +14,7 @@ const elvin = "0x9790C67E6062ce2965517E636377B954FA2d1afA";
 
 async function main() {
 
-    const ETHLong = await ethers.getContractFactory("SingleAssetETHLong");
-    const ethLong = await ETHLong.deploy(
-        "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb",//Aave flashloan
-        "0x88c6a98430Cc833E168430DaC427e9796C9EC576",//Mahalend
-        "0xE592427A0AEce92De3Edee1F18E0157C05861564"// Uniswap router
-    )
-
-    await ethLong.deployed();
-    console.log("ETHLong contract deployed: ", ethLong.address)
-
-    await executeCreateKernalAccount(ethLong);
+    await executeCreateKernalAccount();
 }
 
 main().catch((error) => {
@@ -30,11 +22,12 @@ main().catch((error) => {
     process.exitCode = 1;
 });
 
-async function executeCreateKernalAccount(ELContract: SingleAssetETHLong) {
+async function executeCreateKernalAccount() {
     const mahalendContract = new ethers.Contract("0x571befd7972a4fc8804d493ffec2183370ad2696", mahaLendJson)
+    const rewardContract = new ethers.Contract("0x6BD21E06274EBb92eEa5f9EB794914bAcfF0491F", rewardContractJson)
     const elvinSigner = await ethers.getSigner(elvin);
     const kernalAaccount = await ethers.getContractAt('Kernel', '0x14f92ED2B3860e282Bb60b6D7cA58937f309517c');
-    // const ELContract = await ethers.getContractAt('SingleAssetETHLong', '0x015B255dD9B1B63067F4A0B8aCd1C12ADBa511BE')
+    const ELContract = await ethers.getContractAt('SingleAssetETHLong', '0xBf3076D16Dbf13605e622FC7b52ec47f6C0E3f05')
 
     //usdc token
     const usdc = await ethers.getContractAt(
@@ -72,16 +65,22 @@ async function executeCreateKernalAccount(ELContract: SingleAssetETHLong) {
     //     elvin
     // )
 
-    const res = await encodeClosePositionHelper(
+    const res = await encodeCloseClaimPositionHelper(
         mWeth,
         weth,
         usdc,
+        rewardContract,
         ELContract,
-        '0x571BeFd7972A4fc8804D493fFEc2183370ad2696',
-        mWETHBalance
+        kernalAaccount,
+        mUsdc.address,
+        mWETHBalance,
     )
+    console.log('before clamin rewards', await usdc.connect(elvinSigner).balanceOf(kernalAaccount.address), await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
 
     await kernalAaccount.connect(elvinSigner).executeAndRevertMultiple(res.addressArray, res.valueArray, res.functionDataArray, res.operationArray)
+
+    console.log('after clamin rewards', await usdc.connect(elvinSigner).balanceOf(kernalAaccount.address), await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
+
 
     console.log(await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
 }
