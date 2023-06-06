@@ -26,9 +26,16 @@ async function executeCreateKernalAccount() {
     const mahalendContract = new ethers.Contract("0x571befd7972a4fc8804d493ffec2183370ad2696", mahaLendJson)
     const rewardContract = new ethers.Contract("0x6BD21E06274EBb92eEa5f9EB794914bAcfF0491F", rewardContractJson)
     const elvinSigner = await ethers.getSigner(elvin);
-    const kernalAaccount = await ethers.getContractAt('Kernel', '0x14f92ED2B3860e282Bb60b6D7cA58937f309517c');
+    const kernelFactory = await ethers.getContractAt('KernelFactory', '0x842e8915613560Db4113d952038090b088f0fC05')
     const ELContract = await ethers.getContractAt('SingleAssetETHLong', '0xBf3076D16Dbf13605e622FC7b52ec47f6C0E3f05')
 
+    await kernelFactory.connect(elvinSigner).createAccount(elvinSigner.getAddress(), 0);
+
+    const kernalAccountAddr = await kernelFactory.connect(elvinSigner).getAccountAddress(elvinSigner.getAddress(), 0)
+
+    console.log('kernalAccountAddr', kernalAccountAddr)
+
+    const kernalAaccount = await ethers.getContractAt('Kernel', kernalAccountAddr);
     //usdc token
     const usdc = await ethers.getContractAt(
         "@aave/core-v3/contracts/dependencies/openzeppelin/contracts/IERC20.sol:IERC20",
@@ -53,19 +60,25 @@ async function executeCreateKernalAccount() {
 
     const mWETHBalance = await mWeth.connect(elvinSigner).balanceOf(elvin);
 
+    await usdc.connect(elvinSigner).approve(kernalAaccount.address, formatToBN(1, 6));
 
-    // const res = await encodeFunctionHelper(
-    //     usdc,
-    //     mahalendContract,
-    //     ELContract,
-    //     formatToBN(1, 6),
-    //     formatToBN(2, 18),
-    //     formatToBN(1892.73, 18),
-    //     kernalAaccount.address,
-    //     elvin
-    // )
+    console.log('open position start');
 
-    const res = await encodeCloseClaimPositionHelper(
+    const openRes = await encodeFunctionHelper(
+        usdc,
+        mahalendContract,
+        ELContract,
+        formatToBN(1, 6),
+        formatToBN(2, 18),
+        formatToBN(1807, 18),
+        kernalAaccount.address,
+        elvin
+    );
+    await kernalAaccount.connect(elvinSigner).executeAndRevertMultiple(openRes.addressArray, openRes.valueArray, openRes.functionDataArray, openRes.operationArray);
+    console.log('open position end');
+
+    console.log('close position start');
+    const CloseRes = await encodeCloseClaimPositionHelper(
         mWeth,
         weth,
         usdc,
@@ -74,13 +87,9 @@ async function executeCreateKernalAccount() {
         kernalAaccount,
         mUsdc.address,
         mWETHBalance,
-    )
-    console.log('before clamin rewards', await usdc.connect(elvinSigner).balanceOf(kernalAaccount.address), await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
+    );
 
-    await kernalAaccount.connect(elvinSigner).executeAndRevertMultiple(res.addressArray, res.valueArray, res.functionDataArray, res.operationArray)
+    await kernalAaccount.connect(elvinSigner).executeAndRevertMultiple(CloseRes.addressArray, CloseRes.valueArray, CloseRes.functionDataArray, CloseRes.operationArray);
 
-    console.log('after clamin rewards', await usdc.connect(elvinSigner).balanceOf(kernalAaccount.address), await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
-
-
-    console.log(await weth.connect(elvinSigner).balanceOf(kernalAaccount.address))
+    console.log('close position end');
 }
